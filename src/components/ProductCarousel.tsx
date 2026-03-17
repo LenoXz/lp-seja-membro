@@ -8,9 +8,10 @@ interface ProductCarouselProps {
   products: Product[];
   selectedId: string;
   onSelect: (id: string) => void;
+  onCta: (id: string) => void;
 }
 
-export default function ProductCarousel({ products, selectedId, onSelect }: ProductCarouselProps) {
+export default function ProductCarousel({ products, selectedId, onSelect, onCta }: ProductCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToCard = useCallback((index: number) => {
@@ -77,6 +78,7 @@ export default function ProductCarousel({ products, selectedId, onSelect }: Prod
             product={product}
             isSelected={product.id === selectedId}
             onClick={() => handleSelect(product.id)}
+            onCta={() => onCta(product.id)}
           />
         ))}
       </div>

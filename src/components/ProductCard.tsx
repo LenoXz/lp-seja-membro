@@ -4,13 +4,14 @@ interface ProductCardProps {
   product: Product;
   isSelected: boolean;
   onClick: () => void;
+  onCta: () => void;
 }
 
-export default function ProductCard({ product, isSelected, onClick }: ProductCardProps) {
+export default function ProductCard({ product, isSelected, onClick, onCta }: ProductCardProps) {
   return (
-    <button
+    <div
       onClick={onClick}
-      className={`flex w-[85vw] max-w-[400px] flex-shrink-0 snap-center flex-col justify-between p-6 text-left transition-all duration-300 md:w-[60vw] md:p-8 lg:w-[400px] ${
+      className={`flex w-[85vw] max-w-[400px] flex-shrink-0 snap-center flex-col justify-between p-6 text-left transition-all duration-300 cursor-pointer md:w-[60vw] md:p-8 lg:w-[400px] ${
         isSelected
           ? "border-2 border-primary bg-gray-900"
           : "border-2 border-gray-700 bg-black hover:border-gray-400"
@@ -54,16 +55,18 @@ export default function ProductCard({ product, isSelected, onClick }: ProductCar
         </ul>
       </div>
 
-      {/* Selection indicator */}
+      {/* CTA Button */}
       <div className="mt-6 pt-4 border-t border-gray-800">
-        <span
-          className={`inline-block font-body text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${
-            isSelected ? "text-primary" : "text-gray-500"
-          }`}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onCta();
+          }}
+          className="w-full inline-flex items-center justify-center border-2 border-primary bg-transparent px-6 py-3 font-body text-sm font-medium uppercase tracking-[0.07em] text-primary transition-all duration-300 hover:bg-primary hover:text-black active:bg-primary active:text-black"
         >
-          {isSelected ? "● Selecionado" : "Toque para selecionar →"}
-        </span>
+          Quero saber mais
+        </button>
       </div>
-    </button>
+    </div>
   );
 }

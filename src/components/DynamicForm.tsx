@@ -87,16 +87,9 @@ export default function DynamicForm({ product }: DynamicFormProps) {
 
   return (
     <div key={product.id} className="animate-fadeIn">
-      {/* Form header */}
-      <div className="mb-8">
-        <span className="mb-2 block h-1 w-8 bg-primary" />
-        <h3 className="font-display text-2xl font-bold text-white">
-          {product.title}
-        </h3>
-        <p className="mt-2 font-body text-sm text-gray-200">
-          Preencha o formulário abaixo e entraremos em contato.
-        </p>
-      </div>
+      <p className="mb-6 font-body text-sm text-gray-200">
+        Preencha o formulário abaixo e entraremos em contato.
+      </p>
 
       {submitted ? (
         <div className="flex flex-col items-center justify-center py-16">
