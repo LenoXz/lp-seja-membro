@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { products } from "@/data/products";
+import { useInView } from "@/hooks/useInView";
 import ProductCarousel from "./ProductCarousel";
 import DynamicForm from "./DynamicForm";
 
@@ -10,6 +11,7 @@ export default function ProductSection() {
   const [formVisible, setFormVisible] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const selectedProduct = products.find((p) => p.id === selectedId) ?? products[0];
+  const { ref: headerRef, isInView: headerInView } = useInView({ threshold: 0.2 });
 
   const handleSelect = (id: string) => {
     if (id !== selectedId) {
@@ -35,11 +37,19 @@ export default function ProductSection() {
   return (
     <section id="produtos" className="relative bg-black py-12 md:py-20">
       {/* Section header */}
-      <div className="mb-8 px-5 md:mb-12 md:px-8">
-        <p className="mb-3 font-body text-xs font-bold uppercase tracking-[3.5px] text-primary">
+      <div ref={headerRef} className="mb-8 px-5 md:mb-12 md:px-8">
+        <p
+          className={`mb-3 font-body text-xs font-bold uppercase tracking-[3.5px] text-primary transition-all duration-600 ${
+            headerInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"
+          }`}
+        >
           Nossos Produtos
         </p>
-        <h2 className="font-display text-[clamp(1.5rem,5vw,3rem)] font-bold leading-[1.1] text-white">
+        <h2
+          className={`font-display text-[clamp(1.5rem,5vw,3rem)] font-bold leading-[1.1] text-white transition-all duration-700 delay-150 ${
+            headerInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+          }`}
+        >
           Escolha a melhor forma
           <br />
           de se conectar
@@ -59,7 +69,7 @@ export default function ProductSection() {
         <>
           <div className="mx-5 my-10 h-px bg-gray-800 md:mx-8 md:my-16" />
 
-          <div ref={formRef} className="mx-auto max-w-2xl px-5 pt-2 md:px-8">
+          <div ref={formRef} className="mx-auto max-w-2xl px-5 pt-2 md:px-8 animate-fadeUp">
             <div className="mb-6 flex items-center justify-between">
               <h3 className="font-display text-lg font-bold text-white md:text-xl">
                 {selectedProduct.title}

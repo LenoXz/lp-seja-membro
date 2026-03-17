@@ -70,7 +70,7 @@ export const products: Product[] = [
         label: "Porte da empresa",
         type: "select",
         required: true,
-        options: ["MEI", "Micro", "Pequena", "Média", "Grande"],
+        options: ["Startup", "Pequena e Média Empresa", "Corporate", "Investidor", "Entidade e Hub", "Escola e Universidade", "Poder Público"],
       },
       {
         name: "setor_atuacao",
@@ -105,7 +105,6 @@ export const products: Product[] = [
       "Utilize os espaços do Instituto Caldeira para eventos, reuniões, workshops e muito mais. Ambientes modernos e preparados para impulsionar a colaboração.",
     highlights: [
       "Salas de reunião equipadas",
-      "Auditório para eventos",
       "Espaços de coworking",
       "Infraestrutura completa de A/V",
     ],

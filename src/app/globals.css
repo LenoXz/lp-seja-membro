@@ -18,6 +18,15 @@
   --font-body: "Montserrat", sans-serif;
 
   --animate-fadeIn: fadeIn 0.4s ease-out;
+  --animate-fadeUp: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-fadeUpDelay1: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  --animate-fadeUpDelay2: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+  --animate-fadeUpDelay3: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+  --animate-fadeUpDelay4: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+  --animate-scaleIn: scaleIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slideInLeft: slideInLeft 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slideInRight: slideInRight 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-kenBurns: kenBurns 8s ease-out both;
 }
 
 @keyframes fadeIn {
@@ -28,6 +37,59 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes kenBurns {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
   }
 }
 

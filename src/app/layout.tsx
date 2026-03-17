@@ -19,7 +19,7 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Seja Membro | Instituto Caldeira",
   description:
-    "Faça parte do ecossistema de inovação do Instituto Caldeira. Conheça nossos planos e encontre a melhor forma de se conectar.",
+    "Faça parte do ecossistema de inovação do Instituto Caldeira. Conheça nossos produtos e encontre a melhor forma de se conectar.",
 };
 
 export default function RootLayout({
