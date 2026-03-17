@@ -11,6 +11,13 @@ export default function ProductSection() {
   const formRef = useRef<HTMLDivElement>(null);
   const selectedProduct = products.find((p) => p.id === selectedId) ?? products[0];
 
+  const handleSelect = (id: string) => {
+    if (id !== selectedId) {
+      setFormVisible(false);
+    }
+    setSelectedId(id);
+  };
+
   const handleCta = (id: string) => {
     setSelectedId(id);
     setFormVisible(true);
@@ -19,7 +26,6 @@ export default function ProductSection() {
   // Scroll to form when it becomes visible
   useEffect(() => {
     if (formVisible && formRef.current) {
-      // Small delay to let the DOM render before scrolling
       setTimeout(() => {
         formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
@@ -44,7 +50,7 @@ export default function ProductSection() {
       <ProductCarousel
         products={products}
         selectedId={selectedId}
-        onSelect={setSelectedId}
+        onSelect={handleSelect}
         onCta={handleCta}
       />
 

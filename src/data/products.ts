@@ -14,6 +14,7 @@ export interface Product {
   subtitle: string;
   description: string;
   highlights: string[];
+  image: string;
   fields: FormField[];
 }
 
@@ -53,6 +54,7 @@ export const products: Product[] = [
     id: "membership",
     title: "Membership",
     subtitle: "Conexão com o ecossistema",
+    image: "/membership.jpg",
     description:
       "Torne-se membro do Instituto Caldeira e tenha acesso a uma comunidade vibrante de inovação, eventos exclusivos e oportunidades de networking com líderes do ecossistema.",
     highlights: [
@@ -98,6 +100,7 @@ export const products: Product[] = [
     id: "espaco-fisico",
     title: "Espaço Físico",
     subtitle: "Infraestrutura para inovação",
+    image: "/espaco_fisico.jpg",
     description:
       "Utilize os espaços do Instituto Caldeira para eventos, reuniões, workshops e muito mais. Ambientes modernos e preparados para impulsionar a colaboração.",
     highlights: [
@@ -149,6 +152,7 @@ export const products: Product[] = [
     id: "programas-aceleracao",
     title: "Programas de Aceleração",
     subtitle: "Acelere sua startup",
+    image: "/programas_aceleração.jpg",
     description:
       "Participe dos programas de aceleração do Instituto Caldeira e leve sua startup ao próximo nível com mentoria, conexões e recursos exclusivos.",
     highlights: [
@@ -203,59 +207,10 @@ export const products: Product[] = [
     ],
   },
   {
-    id: "patrocinios",
-    title: "Patrocínios",
-    subtitle: "Visibilidade e impacto",
-    description:
-      "Associe sua marca ao ecossistema de inovação mais relevante do Sul do Brasil. Patrocine eventos, programas e iniciativas do Instituto Caldeira.",
-    highlights: [
-      "Exposição de marca premium",
-      "Acesso a público qualificado",
-      "Associação com inovação",
-      "Relatórios de impacto",
-    ],
-    fields: [
-      ...commonFields,
-      {
-        name: "tipo_patrocinio",
-        label: "Tipo de patrocínio",
-        type: "select",
-        required: true,
-        options: [
-          "Evento específico",
-          "Programa de aceleração",
-          "Patrocínio institucional",
-          "Naming rights",
-          "Outro",
-        ],
-      },
-      {
-        name: "orcamento",
-        label: "Orçamento estimado",
-        type: "select",
-        required: false,
-        options: [
-          "Até R$ 50k",
-          "R$ 50k - R$ 150k",
-          "R$ 150k - R$ 500k",
-          "Acima de R$ 500k",
-          "A definir",
-        ],
-      },
-      {
-        name: "objetivo",
-        label: "Objetivo principal do patrocínio",
-        type: "textarea",
-        required: false,
-        placeholder: "Branding, geração de leads, posicionamento...",
-        fullWidth: true,
-      },
-    ],
-  },
-  {
     id: "missoes-internacionais",
     title: "Missões Internacionais",
     subtitle: "Expandindo fronteiras",
+    image: "/missoes_internacionais.JPG",
     description:
       "Participe de missões internacionais e conecte-se com ecossistemas de inovação ao redor do mundo. Visite hubs, conheça startups e amplie sua visão.",
     highlights: [
@@ -307,6 +262,7 @@ export const products: Product[] = [
     id: "parceiro-empregabilidade",
     title: "Parceiro de Empregabilidade",
     subtitle: "Conectando talentos",
+    image: "/parceiro_empregabilidade.jpg",
     description:
       "Torne-se um parceiro de empregabilidade e tenha acesso a talentos qualificados formados pelos programas do Instituto Caldeira.",
     highlights: [
