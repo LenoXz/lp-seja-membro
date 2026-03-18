@@ -32,10 +32,10 @@ export const products: Product[] = [
     description:
       "Torne-se membro do Instituto Caldeira e tenha acesso a uma comunidade vibrante de inovação, eventos exclusivos e oportunidades de networking com líderes do ecossistema.",
     highlights: [
-      "Acesso a eventos exclusivos",
       "Networking com líderes do ecossistema",
       "Descontos em programas e espaços",
       "Visibilidade para sua marca",
+      "Acesso a eventos exclusivos de matchmaking, rodadas de investimento e encontros de negócios",
     ],
     fields: [
       {
@@ -112,7 +112,7 @@ export const products: Product[] = [
       "Utilize os espaços do Instituto Caldeira para eventos, reuniões, workshops e muito mais. Ambientes modernos e preparados para impulsionar a colaboração.",
     highlights: [
       "Salas de reunião equipadas",
-      "Espaços de coworking",
+      "Espaços de trabalho",
       "Infraestrutura completa de A/V",
     ],
     fields: [
