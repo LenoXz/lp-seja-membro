@@ -247,7 +247,7 @@ export const products: Product[] = [
           "Validação: Produto em validação, mas ainda sem vendas.",
           "Operação: Produto lançado no mercado, em fase inicial de vendas.",
           "Tração: Expansão ativa e aumento consistente de clientes/receita.",
-          "Escala: Estabelecida no mercado, buscando expansão e otimização.,
+          "Escala: Estabelecida no mercado, buscando expansão e otimização.",
         ],
       },
       {
