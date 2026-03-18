@@ -4,6 +4,11 @@ const PIPERUN_TOKEN = Deno.env.get("PIPERUN_TOKEN");
 const PIPERUN_API_URL = "https://api.pipe.run/v1";
 const ORIGIN_ID = 764553;
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -15,7 +20,7 @@ interface LeadPayload {
   nome: string;
   email: string;
   telefone: string;
-  custom_data: Record<string, string>;
+  custom_data: Record<string, string> | string;
 }
 
 interface WebhookPayload {
@@ -23,6 +28,24 @@ interface WebhookPayload {
   table: string;
   record: LeadPayload;
   schema: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers: garante que custom_data seja sempre um objeto
+// ---------------------------------------------------------------------------
+
+function parseCustomData(raw: Record<string, string> | string | null | undefined): Record<string, string> {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === "object" && parsed !== null ? parsed : {};
+    } catch {
+      console.error("[parseCustomData] Falha ao parsear custom_data string:", raw);
+      return {};
+    }
+  }
+  return raw;
 }
 
 interface CustomField {
@@ -182,7 +205,7 @@ async function piperunFetch(
 
 async function findOrCreateCompany(
   companyName: string,
-  lead: LeadPayload,
+  customData: Record<string, string>,
   formMapping: FormFieldMapping,
 ): Promise<number> {
   // Busca empresa pelo nome
@@ -193,10 +216,10 @@ async function findOrCreateCompany(
   );
 
   // Monta custom fields e segment
-  const companyCustom = buildCustomFields(lead.custom_data, formMapping.company_custom_fields);
+  const companyCustom = buildCustomFields(customData, formMapping.company_custom_fields);
   let segmentId: number | undefined;
   if (formMapping.segment_field) {
-    const segmentValue = lead.custom_data[formMapping.segment_field];
+    const segmentValue = customData[formMapping.segment_field];
     segmentId = segmentValue ? SEGMENT_MAP[segmentValue] : undefined;
     console.log(`[Company] Segmento: "${segmentValue}" → segment_id: ${segmentId ?? "NÃO ENCONTRADO"}`);
   }
@@ -264,6 +287,7 @@ async function findOrCreateCompany(
 async function findOrCreatePerson(
   lead: LeadPayload,
   companyId: number,
+  customData: Record<string, string>,
   formMapping: FormFieldMapping,
 ): Promise<number> {
   const searchData = await piperunFetch(
@@ -272,14 +296,17 @@ async function findOrCreatePerson(
     { headers: { "Token": PIPERUN_TOKEN! } },
   );
 
-  const personCustom = buildCustomFields(lead.custom_data, formMapping.person_custom_fields);
+  const personCustom = buildCustomFields(customData, formMapping.person_custom_fields);
 
-  // Se pessoa já existe, atualiza custom fields e vincula à empresa
+  // Se pessoa já existe, atualiza todos os dados
   if (Array.isArray(searchData.data) && searchData.data.length > 0) {
     const existingId = searchData.data[0].id as number;
     console.log(`[Person] Encontrada: id=${existingId}, atualizando campos...`);
 
     const updateBody: Record<string, unknown> = {
+      name: lead.nome,
+      contactEmails: [lead.email],
+      contactPhones: [lead.telefone],
       company_id: companyId,
     };
     if (personCustom.length > 0) {
@@ -302,8 +329,8 @@ async function findOrCreatePerson(
   // Cria pessoa nova
   const body: Record<string, unknown> = {
     name: lead.nome,
-    email: lead.email,
-    phone: lead.telefone,
+    contactEmails: [lead.email],
+    contactPhones: [lead.telefone],
     company_id: companyId,
   };
   if (personCustom.length > 0) {
@@ -336,6 +363,7 @@ async function createDeal(
   personId: number,
   companyId: number,
   companyName: string,
+  customData: Record<string, string>,
   formMapping: FormFieldMapping,
 ) {
   const pipeline = PIPELINE_MAP[lead.form_name] ?? PIPELINE_MAP["membership"];
@@ -351,7 +379,7 @@ async function createDeal(
     origin_id: ORIGIN_ID,
   };
 
-  const dealCustom = buildCustomFields(lead.custom_data, formMapping.deal_custom_fields);
+  const dealCustom = buildCustomFields(customData, formMapping.deal_custom_fields);
   if (dealCustom.length > 0) {
     body.custom_fields = dealCustom;
   }
@@ -376,12 +404,17 @@ async function createDeal(
 // ---------------------------------------------------------------------------
 
 Deno.serve(async (req: Request) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
+
   try {
     if (!PIPERUN_TOKEN) {
       console.error("PIPERUN_TOKEN não configurado!");
       return new Response(
         JSON.stringify({ error: "PIPERUN_TOKEN não configurado" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
+        { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 
@@ -394,32 +427,38 @@ Deno.serve(async (req: Request) => {
       console.log("Evento ignorado (não é INSERT em leads)");
       return new Response(
         JSON.stringify({ message: "Evento ignorado" }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
+        { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
       );
     }
 
     const lead = payload.record;
+
+    // Garante que custom_data é um objeto (pode vir como string JSON do webhook)
+    const customData = parseCustomData(lead.custom_data);
+    lead.custom_data = customData;
+    console.log("[DEBUG] custom_data type:", typeof payload.record.custom_data, "→ parsed keys:", Object.keys(customData));
+
     const formMapping = FORM_FIELDS[lead.form_name];
     if (!formMapping) {
       throw new Error(`Formulário desconhecido: ${lead.form_name}`);
     }
 
     console.log(`\n--- Processando: ${lead.form_name} ---`);
-    console.log("custom_data:", JSON.stringify(lead.custom_data));
+    console.log("custom_data:", JSON.stringify(customData));
 
     // 1. Nome da empresa
     const companyNameField = COMPANY_NAME_FIELD[lead.form_name] ?? "empresa";
-    const companyName = lead.custom_data[companyNameField] ?? lead.nome;
+    const companyName = customData[companyNameField] ?? lead.nome;
     console.log(`Empresa: campo="${companyNameField}" → valor="${companyName}"`);
 
     // 2. Busca ou cria empresa (sempre atualiza custom fields)
-    const companyId = await findOrCreateCompany(companyName, lead, formMapping);
+    const companyId = await findOrCreateCompany(companyName, customData, formMapping);
 
     // 3. Busca ou cria pessoa (sempre atualiza custom fields)
-    const personId = await findOrCreatePerson(lead, companyId, formMapping);
+    const personId = await findOrCreatePerson(lead, companyId, customData, formMapping);
 
     // 4. Cria oportunidade
-    const deal = await createDeal(lead, personId, companyId, companyName, formMapping);
+    const deal = await createDeal(lead, personId, companyId, companyName, customData, formMapping);
     const dealId = (deal.data as Record<string, unknown>)?.id;
 
     console.log(`\n=== SUCESSO: ${lead.form_name} | Company: ${companyId} | Person: ${personId} | Deal: ${dealId} ===\n`);
@@ -431,7 +470,7 @@ Deno.serve(async (req: Request) => {
         person_id: personId,
         deal_id: dealId,
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
+      { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   } catch (error) {
     console.error("=== EDGE FUNCTION ERROR ===");
@@ -439,7 +478,7 @@ Deno.serve(async (req: Request) => {
     console.error((error as Error).stack);
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+      { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
   }
 });
