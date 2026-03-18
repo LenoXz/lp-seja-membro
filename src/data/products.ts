@@ -66,6 +66,21 @@ export const products: Product[] = [
           "Construção, Engenharia & Incorp."],
       },
       {
+        name: "tipo_empresa",
+        label: "Tipo de empresa",
+        type: "select",
+        required: true,
+        options: [
+          "Poder Público",
+          "Startup",
+          "Corporate",
+          "Investidor",
+          "Pequena e Média Empresa",
+          "Escola e Universidade",
+          "Entidade e Hub",
+        ],
+      },
+      {
         name: "num_funcionarios",
         label: "Número de funcionários",
         type: "select",

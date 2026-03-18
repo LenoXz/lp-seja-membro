@@ -82,6 +82,7 @@ const FORM_FIELDS: Record<string, FormFieldMapping> = {
   "membership": {
     company_custom_fields: {
       "num_funcionarios": 464592,
+      "tipo_empresa": 496827,
     },
     person_custom_fields: {
       "cargo": 694927,
@@ -151,7 +152,6 @@ function buildCustomFields(
   return fields;
 }
 
-// Helper para logar requests e responses da API Piperun
 async function piperunFetch(
   label: string,
   url: string,
@@ -172,12 +172,12 @@ async function piperunFetch(
   }
 
   const json = JSON.parse(text);
-  console.log(`[${label}] OK - Response:`, JSON.stringify(json.data?.id ?? json.data?.[0]?.id ?? "sem id"));
+  console.log(`[${label}] OK - Response ID:`, JSON.stringify(json.data?.id ?? json.data?.[0]?.id ?? "sem id"));
   return json;
 }
 
 // ---------------------------------------------------------------------------
-// API: Company
+// API: Company — busca, cria ou atualiza
 // ---------------------------------------------------------------------------
 
 async function findOrCreateCompany(
@@ -192,29 +192,50 @@ async function findOrCreateCompany(
     { headers: { "Token": PIPERUN_TOKEN! } },
   );
 
+  // Monta custom fields e segment
+  const companyCustom = buildCustomFields(lead.custom_data, formMapping.company_custom_fields);
+  let segmentId: number | undefined;
+  if (formMapping.segment_field) {
+    const segmentValue = lead.custom_data[formMapping.segment_field];
+    segmentId = segmentValue ? SEGMENT_MAP[segmentValue] : undefined;
+    console.log(`[Company] Segmento: "${segmentValue}" → segment_id: ${segmentId ?? "NÃO ENCONTRADO"}`);
+  }
+
+  // Se empresa já existe, atualiza os custom fields
   if (Array.isArray(searchData.data) && searchData.data.length > 0) {
-    const existingId = searchData.data[0].id;
-    console.log(`[Company] Encontrada: id=${existingId}, nome="${companyName}"`);
+    const existingId = searchData.data[0].id as number;
+    console.log(`[Company] Encontrada: id=${existingId}, atualizando campos...`);
+
+    const updateBody: Record<string, unknown> = {};
+    if (segmentId) {
+      updateBody.segment_id = segmentId;
+    }
+    if (companyCustom.length > 0) {
+      updateBody.custom_fields = companyCustom;
+    }
+
+    if (Object.keys(updateBody).length > 0) {
+      await piperunFetch(
+        "Company/Update",
+        `${PIPERUN_API_URL}/companies/${existingId}`,
+        {
+          method: "PUT",
+          headers: apiHeaders(),
+          body: JSON.stringify(updateBody),
+        },
+      );
+    }
+
     return existingId;
   }
 
-  // Monta body para criação
+  // Cria empresa nova
   const body: Record<string, unknown> = {
     name: companyName,
   };
-
-  // segment_id (campo nativo da empresa)
-  if (formMapping.segment_field) {
-    const segmentValue = lead.custom_data[formMapping.segment_field];
-    const segmentId = segmentValue ? SEGMENT_MAP[segmentValue] : undefined;
-    console.log(`[Company] Segmento: "${segmentValue}" → segment_id: ${segmentId ?? "NÃO ENCONTRADO"}`);
-    if (segmentId) {
-      body.segment_id = segmentId;
-    }
+  if (segmentId) {
+    body.segment_id = segmentId;
   }
-
-  // Custom fields da empresa (formato array igual deals)
-  const companyCustom = buildCustomFields(lead.custom_data, formMapping.company_custom_fields);
   if (companyCustom.length > 0) {
     body.custom_fields = companyCustom;
   }
@@ -237,7 +258,7 @@ async function findOrCreateCompany(
 }
 
 // ---------------------------------------------------------------------------
-// API: Person
+// API: Person — busca, cria ou atualiza
 // ---------------------------------------------------------------------------
 
 async function findOrCreatePerson(
@@ -251,21 +272,40 @@ async function findOrCreatePerson(
     { headers: { "Token": PIPERUN_TOKEN! } },
   );
 
+  const personCustom = buildCustomFields(lead.custom_data, formMapping.person_custom_fields);
+
+  // Se pessoa já existe, atualiza custom fields e vincula à empresa
   if (Array.isArray(searchData.data) && searchData.data.length > 0) {
-    const existingId = searchData.data[0].id;
-    console.log(`[Person] Encontrada: id=${existingId}, email="${lead.email}"`);
+    const existingId = searchData.data[0].id as number;
+    console.log(`[Person] Encontrada: id=${existingId}, atualizando campos...`);
+
+    const updateBody: Record<string, unknown> = {
+      company_id: companyId,
+    };
+    if (personCustom.length > 0) {
+      updateBody.custom_fields = personCustom;
+    }
+
+    await piperunFetch(
+      "Person/Update",
+      `${PIPERUN_API_URL}/persons/${existingId}`,
+      {
+        method: "PUT",
+        headers: apiHeaders(),
+        body: JSON.stringify(updateBody),
+      },
+    );
+
     return existingId;
   }
 
+  // Cria pessoa nova
   const body: Record<string, unknown> = {
     name: lead.nome,
     email: lead.email,
     phone: lead.telefone,
     company_id: companyId,
   };
-
-  // Custom fields da pessoa (ex: cargo)
-  const personCustom = buildCustomFields(lead.custom_data, formMapping.person_custom_fields);
   if (personCustom.length > 0) {
     body.custom_fields = personCustom;
   }
@@ -300,7 +340,6 @@ async function createDeal(
 ) {
   const pipeline = PIPELINE_MAP[lead.form_name] ?? PIPELINE_MAP["membership"];
 
-  // Título único com ID do lead para evitar rejeição por duplicidade
   const title = `${companyName} - SSB26 (${lead.id.slice(0, 8)})`;
 
   const body: Record<string, unknown> = {
@@ -312,7 +351,6 @@ async function createDeal(
     origin_id: ORIGIN_ID,
   };
 
-  // Custom fields da oportunidade
   const dealCustom = buildCustomFields(lead.custom_data, formMapping.deal_custom_fields);
   if (dealCustom.length > 0) {
     body.custom_fields = dealCustom;
@@ -374,10 +412,10 @@ Deno.serve(async (req: Request) => {
     const companyName = lead.custom_data[companyNameField] ?? lead.nome;
     console.log(`Empresa: campo="${companyNameField}" → valor="${companyName}"`);
 
-    // 2. Busca ou cria empresa
+    // 2. Busca ou cria empresa (sempre atualiza custom fields)
     const companyId = await findOrCreateCompany(companyName, lead, formMapping);
 
-    // 3. Busca ou cria pessoa
+    // 3. Busca ou cria pessoa (sempre atualiza custom fields)
     const personId = await findOrCreatePerson(lead, companyId, formMapping);
 
     // 4. Cria oportunidade
