@@ -38,8 +38,8 @@ const PIPELINE_MAP: Record<string, { pipeline_id: number; stage_id: number }> = 
   "membership":                 { pipeline_id: 54944,  stage_id: 327552 },
   "espaco-fisico":              { pipeline_id: 101757, stage_id: 654313 },
   "programas-aceleracao":       { pipeline_id: 103100, stage_id: 664077 },
-  "missoes-internacionais":     { pipeline_id: 73249,  stage_id: 664079 },
-  "parceiro-empregabilidade":   { pipeline_id: 103101, stage_id: 449372 },
+  "missoes-internacionais":     { pipeline_id: 73249,  stage_id: 449372 },
+  "parceiro-empregabilidade":   { pipeline_id: 103101, stage_id: 664079 },
 };
 
 const SEGMENT_MAP: Record<string, number> = {
@@ -59,7 +59,6 @@ const SEGMENT_MAP: Record<string, number> = {
   "Transporte, Logística & Mobilidade": 245656,
 };
 
-// Qual campo do custom_data contém o nome da empresa para cada formulário
 const COMPANY_NAME_FIELD: Record<string, string> = {
   "membership": "empresa",
   "espaco-fisico": "empresa",
@@ -73,10 +72,10 @@ const COMPANY_NAME_FIELD: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 interface FormFieldMapping {
-  company_custom_fields: Record<string, number>;   // campo_custom_data → piperun_field_id
+  company_custom_fields: Record<string, number>;
   person_custom_fields: Record<string, number>;
   deal_custom_fields: Record<string, number>;
-  segment_field?: string;  // campo do custom_data que mapeia para segment_id
+  segment_field?: string;
 }
 
 const FORM_FIELDS: Record<string, FormFieldMapping> = {
@@ -98,7 +97,7 @@ const FORM_FIELDS: Record<string, FormFieldMapping> = {
     deal_custom_fields: {
       "m2_desejados": 675173,
       "espaco_sede": 764147,
-      "times_hub": 464292,
+      "times_hub": 764208,
       "num_pessoas": 764172,
       "urgencia": 764168,
     },
@@ -133,12 +132,12 @@ const FORM_FIELDS: Record<string, FormFieldMapping> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const headers = () => ({
+const apiHeaders = () => ({
   "Token": PIPERUN_TOKEN!,
   "Content-Type": "application/json",
 });
 
-function buildCustomFieldsArray(
+function buildCustomFields(
   data: Record<string, string>,
   mapping: Record<string, number>,
 ): CustomField[] {
@@ -146,25 +145,35 @@ function buildCustomFieldsArray(
   for (const [dataKey, piperunId] of Object.entries(mapping)) {
     const value = data[dataKey];
     if (value !== undefined && value !== "") {
-      fields.push({ id: piperunId, value });
+      fields.push({ id: piperunId, value: String(value) });
     }
   }
   return fields;
 }
 
-// Companies usam formato objeto { "id": "valor" }
-function buildCustomFieldsObject(
-  data: Record<string, string>,
-  mapping: Record<string, number>,
-): Record<string, string> {
-  const fields: Record<string, string> = {};
-  for (const [dataKey, piperunId] of Object.entries(mapping)) {
-    const value = data[dataKey];
-    if (value !== undefined && value !== "") {
-      fields[String(piperunId)] = value;
-    }
+// Helper para logar requests e responses da API Piperun
+async function piperunFetch(
+  label: string,
+  url: string,
+  options?: RequestInit,
+): Promise<Record<string, unknown>> {
+  const method = options?.method ?? "GET";
+  console.log(`[${label}] ${method} ${url}`);
+  if (options?.body) {
+    console.log(`[${label}] Body:`, options.body);
   }
-  return fields;
+
+  const res = await fetch(url, options);
+  const text = await res.text();
+
+  if (!res.ok) {
+    console.error(`[${label}] ERRO ${res.status}:`, text);
+    throw new Error(`${label} failed: ${res.status} - ${text}`);
+  }
+
+  const json = JSON.parse(text);
+  console.log(`[${label}] OK - Response:`, JSON.stringify(json.data?.id ?? json.data?.[0]?.id ?? "sem id"));
+  return json;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,14 +186,16 @@ async function findOrCreateCompany(
   formMapping: FormFieldMapping,
 ): Promise<number> {
   // Busca empresa pelo nome
-  const searchRes = await fetch(
+  const searchData = await piperunFetch(
+    "Company/Search",
     `${PIPERUN_API_URL}/companies?name=${encodeURIComponent(companyName)}`,
     { headers: { "Token": PIPERUN_TOKEN! } },
   );
-  const searchData = await searchRes.json();
 
-  if (searchData.data?.length > 0) {
-    return searchData.data[0].id;
+  if (Array.isArray(searchData.data) && searchData.data.length > 0) {
+    const existingId = searchData.data[0].id;
+    console.log(`[Company] Encontrada: id=${existingId}, nome="${companyName}"`);
+    return existingId;
   }
 
   // Monta body para criação
@@ -192,37 +203,37 @@ async function findOrCreateCompany(
     name: companyName,
   };
 
-  // segment_id (nativo) — só membership usa
+  // segment_id (campo nativo da empresa)
   if (formMapping.segment_field) {
     const segmentValue = lead.custom_data[formMapping.segment_field];
     const segmentId = segmentValue ? SEGMENT_MAP[segmentValue] : undefined;
+    console.log(`[Company] Segmento: "${segmentValue}" → segment_id: ${segmentId ?? "NÃO ENCONTRADO"}`);
     if (segmentId) {
       body.segment_id = segmentId;
     }
   }
 
-  // Custom fields da empresa
-  const companyCustom = buildCustomFieldsObject(
-    lead.custom_data,
-    formMapping.company_custom_fields,
-  );
-  if (Object.keys(companyCustom).length > 0) {
+  // Custom fields da empresa (formato array igual deals)
+  const companyCustom = buildCustomFields(lead.custom_data, formMapping.company_custom_fields);
+  if (companyCustom.length > 0) {
     body.custom_fields = companyCustom;
   }
 
-  const createRes = await fetch(`${PIPERUN_API_URL}/companies`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-  });
+  console.log(`[Company] Criando empresa: "${companyName}"`, JSON.stringify(body));
 
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`Piperun createCompany failed: ${createRes.status} - ${err}`);
-  }
+  const createData = await piperunFetch(
+    "Company/Create",
+    `${PIPERUN_API_URL}/companies`,
+    {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify(body),
+    },
+  );
 
-  const createData = await createRes.json();
-  return createData.data.id;
+  const companyId = (createData.data as Record<string, unknown>).id as number;
+  console.log(`[Company] Criada: id=${companyId}`);
+  return companyId;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,18 +245,18 @@ async function findOrCreatePerson(
   companyId: number,
   formMapping: FormFieldMapping,
 ): Promise<number> {
-  // Busca pessoa pelo email
-  const searchRes = await fetch(
+  const searchData = await piperunFetch(
+    "Person/Search",
     `${PIPERUN_API_URL}/persons?email=${encodeURIComponent(lead.email)}`,
     { headers: { "Token": PIPERUN_TOKEN! } },
   );
-  const searchData = await searchRes.json();
 
-  if (searchData.data?.length > 0) {
-    return searchData.data[0].id;
+  if (Array.isArray(searchData.data) && searchData.data.length > 0) {
+    const existingId = searchData.data[0].id;
+    console.log(`[Person] Encontrada: id=${existingId}, email="${lead.email}"`);
+    return existingId;
   }
 
-  // Cria nova pessoa
   const body: Record<string, unknown> = {
     name: lead.nome,
     email: lead.email,
@@ -254,27 +265,26 @@ async function findOrCreatePerson(
   };
 
   // Custom fields da pessoa (ex: cargo)
-  const personCustom = buildCustomFieldsArray(
-    lead.custom_data,
-    formMapping.person_custom_fields,
-  );
+  const personCustom = buildCustomFields(lead.custom_data, formMapping.person_custom_fields);
   if (personCustom.length > 0) {
     body.custom_fields = personCustom;
   }
 
-  const createRes = await fetch(`${PIPERUN_API_URL}/persons`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-  });
+  console.log(`[Person] Criando pessoa: "${lead.nome}"`, JSON.stringify(body));
 
-  if (!createRes.ok) {
-    const err = await createRes.text();
-    throw new Error(`Piperun createPerson failed: ${createRes.status} - ${err}`);
-  }
+  const createData = await piperunFetch(
+    "Person/Create",
+    `${PIPERUN_API_URL}/persons`,
+    {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify(body),
+    },
+  );
 
-  const createData = await createRes.json();
-  return createData.data.id;
+  const personId = (createData.data as Record<string, unknown>).id as number;
+  console.log(`[Person] Criada: id=${personId}`);
+  return personId;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,9 +300,8 @@ async function createDeal(
 ) {
   const pipeline = PIPELINE_MAP[lead.form_name] ?? PIPELINE_MAP["membership"];
 
-  // Título único: "{empresa} - SSB26" + timestamp para evitar duplicidade
-  const timestamp = new Date(lead.created_at).toLocaleDateString("pt-BR");
-  const title = `${companyName} - SSB26 (${timestamp})`;
+  // Título único com ID do lead para evitar rejeição por duplicidade
+  const title = `${companyName} - SSB26 (${lead.id.slice(0, 8)})`;
 
   const body: Record<string, unknown> = {
     title,
@@ -304,26 +313,24 @@ async function createDeal(
   };
 
   // Custom fields da oportunidade
-  const dealCustom = buildCustomFieldsArray(
-    lead.custom_data,
-    formMapping.deal_custom_fields,
-  );
+  const dealCustom = buildCustomFields(lead.custom_data, formMapping.deal_custom_fields);
   if (dealCustom.length > 0) {
     body.custom_fields = dealCustom;
   }
 
-  const res = await fetch(`${PIPERUN_API_URL}/deals`, {
-    method: "POST",
-    headers: headers(),
-    body: JSON.stringify(body),
-  });
+  console.log(`[Deal] Criando deal: "${title}"`, JSON.stringify(body));
 
-  if (!res.ok) {
-    const error = await res.text();
-    throw new Error(`Piperun createDeal failed: ${res.status} - ${error}`);
-  }
+  const dealData = await piperunFetch(
+    "Deal/Create",
+    `${PIPERUN_API_URL}/deals`,
+    {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify(body),
+    },
+  );
 
-  return res.json();
+  return dealData;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +340,7 @@ async function createDeal(
 Deno.serve(async (req: Request) => {
   try {
     if (!PIPERUN_TOKEN) {
+      console.error("PIPERUN_TOKEN não configurado!");
       return new Response(
         JSON.stringify({ error: "PIPERUN_TOKEN não configurado" }),
         { status: 500, headers: { "Content-Type": "application/json" } },
@@ -340,8 +348,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const payload: WebhookPayload = await req.json();
+    console.log("=== WEBHOOK RECEBIDO ===");
+    console.log("Type:", payload.type, "| Table:", payload.table);
+    console.log("Record:", JSON.stringify(payload.record));
 
     if (payload.type !== "INSERT" || payload.table !== "leads") {
+      console.log("Evento ignorado (não é INSERT em leads)");
       return new Response(
         JSON.stringify({ message: "Evento ignorado" }),
         { status: 200, headers: { "Content-Type": "application/json" } },
@@ -354,32 +366,39 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Formulário desconhecido: ${lead.form_name}`);
     }
 
-    // 1. Nome da empresa (varia por formulário)
+    console.log(`\n--- Processando: ${lead.form_name} ---`);
+    console.log("custom_data:", JSON.stringify(lead.custom_data));
+
+    // 1. Nome da empresa
     const companyNameField = COMPANY_NAME_FIELD[lead.form_name] ?? "empresa";
     const companyName = lead.custom_data[companyNameField] ?? lead.nome;
+    console.log(`Empresa: campo="${companyNameField}" → valor="${companyName}"`);
 
-    // 2. Busca ou cria a empresa (com custom fields de empresa + segment_id)
+    // 2. Busca ou cria empresa
     const companyId = await findOrCreateCompany(companyName, lead, formMapping);
 
-    // 3. Busca ou cria a pessoa (vinculada à empresa, com custom fields de pessoa)
+    // 3. Busca ou cria pessoa
     const personId = await findOrCreatePerson(lead, companyId, formMapping);
 
-    // 4. Cria a oportunidade (com custom fields de deal)
+    // 4. Cria oportunidade
     const deal = await createDeal(lead, personId, companyId, companyName, formMapping);
+    const dealId = (deal.data as Record<string, unknown>)?.id;
 
-    console.log(`Lead processado: ${lead.form_name} | Company: ${companyId} | Person: ${personId} | Deal: ${deal.data?.id}`);
+    console.log(`\n=== SUCESSO: ${lead.form_name} | Company: ${companyId} | Person: ${personId} | Deal: ${dealId} ===\n`);
 
     return new Response(
       JSON.stringify({
         success: true,
         company_id: companyId,
         person_id: personId,
-        deal_id: deal.data?.id,
+        deal_id: dealId,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   } catch (error) {
-    console.error("Edge Function error:", error);
+    console.error("=== EDGE FUNCTION ERROR ===");
+    console.error((error as Error).message);
+    console.error((error as Error).stack);
     return new Response(
       JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { "Content-Type": "application/json" } },
