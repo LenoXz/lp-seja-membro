@@ -37,7 +37,7 @@ export default function ProductSection() {
   return (
     <section id="produtos" className="relative bg-black py-12 md:py-20">
       {/* Section header */}
-      <div ref={headerRef} className="mb-8 px-5 md:mb-12 md:px-8">
+      <div ref={headerRef} className="mx-auto mb-8 max-w-[1920px] px-5 md:mb-12 md:px-8">
         <p
           className={`mb-3 font-body text-xs font-bold uppercase tracking-[3.5px] text-primary transition-all duration-600 ${
             headerInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"

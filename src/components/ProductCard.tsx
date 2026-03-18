@@ -12,7 +12,7 @@ export default function ProductCard({ product, isSelected, onClick, onCta }: Pro
   return (
     <div
       onClick={onClick}
-      className={`group flex w-[85vw] max-w-[400px] flex-shrink-0 snap-center flex-col justify-between text-left transition-all duration-500 cursor-pointer md:w-[60vw] md:p-0 lg:w-[400px] overflow-hidden ${
+      className={`group flex h-full w-[85vw] flex-shrink-0 snap-center flex-col justify-between text-left transition-all duration-500 cursor-pointer md:w-[60vw] lg:w-[400px] overflow-hidden ${
         isSelected
           ? "border-2 border-primary bg-gray-900 scale-[1.02]"
           : "border-2 border-gray-700 bg-black hover:border-gray-400 hover:scale-[1.01]"
@@ -29,7 +29,7 @@ export default function ProductCard({ product, isSelected, onClick, onCta }: Pro
               isSelected ? "scale-105" : "group-hover:scale-105"
             }`}
             sizes="(max-width: 768px) 85vw, 400px"
-            quality={90}
+            unoptimized
           />
           <div
             className={`absolute inset-0 bg-black transition-opacity duration-500 ${

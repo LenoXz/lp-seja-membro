@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import type { Product, FormField } from "@/data/products";
+import { supabase } from "@/lib/supabase";
+
+// Campos que são colunas dedicadas na tabela leads
+const COMMON_FIELDS = new Set(["nome", "email", "telefone"]);
 
 interface DynamicFormProps {
   product: Product;
@@ -9,14 +13,60 @@ interface DynamicFormProps {
 
 export default function DynamicForm({ product }: DynamicFormProps) {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [lastProductId, setLastProductId] = useState(product.id);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // Reset field values when product changes
+  if (product.id !== lastProductId) {
+    setFieldValues({});
+    setLastProductId(product.id);
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries());
-    console.log(`[${product.title}] Form data:`, data);
+    const allData = Object.fromEntries(formData.entries()) as Record<string, string>;
+
+    // Separa campos comuns dos campos customizados
+    const custom_data: Record<string, string> = {};
+    const commonData: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(allData)) {
+      if (COMMON_FIELDS.has(key)) {
+        commonData[key] = value;
+      } else {
+        custom_data[key] = value;
+      }
+    }
+
+    const { error: insertError } = await supabase.from("leads").insert({
+      form_name: product.id,
+      nome: commonData.nome ?? "",
+      email: commonData.email ?? "",
+      telefone: commonData.telefone ?? "",
+      custom_data,
+    });
+
+    setSubmitting(false);
+
+    if (insertError) {
+      console.error("Erro ao salvar lead:", insertError);
+      setError("Erro ao enviar. Tente novamente.");
+      return;
+    }
+
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 3000);
+  };
+
+  const isFieldVisible = (field: FormField) => {
+    if (!field.conditionalOn) return true;
+    return fieldValues[field.conditionalOn.field] === field.conditionalOn.value;
   };
 
   const renderField = (field: FormField) => {
@@ -29,7 +79,8 @@ export default function DynamicForm({ product }: DynamicFormProps) {
           <select
             name={field.name}
             required={field.required}
-            defaultValue=""
+            value={fieldValues[field.name] ?? ""}
+            onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.name]: e.target.value }))}
             className={`${baseInputClasses} appearance-none`}
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2300e846' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
@@ -105,10 +156,10 @@ export default function DynamicForm({ product }: DynamicFormProps) {
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-x-8">
-          {product.fields.map((field) => (
+          {product.fields.filter(isFieldVisible).map((field) => (
             <div
               key={field.name}
-              className={field.fullWidth ? "md:col-span-2" : ""}
+              className={`${field.fullWidth ? "md:col-span-2" : ""} ${field.conditionalOn ? "animate-fadeIn" : ""}`}
             >
               <label className="mb-2 block font-body text-sm font-bold tracking-[0.04em] text-primary">
                 {field.label}
@@ -120,11 +171,15 @@ export default function DynamicForm({ product }: DynamicFormProps) {
 
           {/* Submit */}
           <div className="md:col-span-2">
+            {error && (
+              <p className="mb-3 font-body text-sm text-red-400">{error}</p>
+            )}
             <button
               type="submit"
-              className="relative mt-4 mb-1.5 inline-flex items-center justify-center border-3 border-primary bg-transparent px-10 py-3.5 font-body text-base font-medium uppercase tracking-[0.07em] text-primary transition-all duration-300 hover:bg-primary hover:text-black"
+              disabled={submitting}
+              className="relative mt-4 mb-1.5 inline-flex items-center justify-center border-3 border-primary bg-transparent px-10 py-3.5 font-body text-base font-medium uppercase tracking-[0.07em] text-primary transition-all duration-300 hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Enviar
+              {submitting ? "Enviando..." : "Enviar"}
             </button>
           </div>
         </form>

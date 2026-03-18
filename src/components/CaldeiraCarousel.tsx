@@ -55,7 +55,7 @@ export default function CaldeiraCarousel() {
               }`}
               sizes="100vw"
               priority={i === 0}
-              quality={95}
+              unoptimized
             />
           </div>
         ))}

@@ -13,6 +13,7 @@
     "url": "git+https://github.com/LenoXz/lp-seja-membro.git"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.99.2",
     "next": "^16.1.7",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
@@ -23,6 +24,7 @@
     "@types/react": "^19.2.14",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
+    "supabase": "^2.81.3",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3"
   }
