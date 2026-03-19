@@ -5,11 +5,16 @@ import { supabase } from "@/lib/supabase";
 
 export default function PageTracker() {
   useEffect(() => {
-    supabase.from("page_views").insert({
-      page: window.location.pathname,
-      referrer: document.referrer || null,
-      user_agent: navigator.userAgent,
-    });
+    supabase
+      .from("page_views")
+      .insert({
+        page: window.location.pathname,
+        referrer: document.referrer || null,
+        user_agent: navigator.userAgent,
+      })
+      .then(({ error }) => {
+        if (error) console.error("[PageTracker] Erro ao registrar acesso:", error);
+      });
   }, []);
 
   return null;
