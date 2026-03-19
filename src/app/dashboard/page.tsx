@@ -30,6 +30,47 @@ const FORM_COLORS: Record<string, string> = {
   "parceiro-empregabilidade": "#ec4899",
 };
 
+// ---------------------------------------------------------------------------
+// Sub-KPI: Membership por tipo de empresa
+// ---------------------------------------------------------------------------
+
+function getMembershipTypeCounts(leads: Lead[]) {
+  const membershipLeads = leads.filter((l) => l.form_name === "membership");
+  const counts: Record<string, number> = {};
+  for (const lead of membershipLeads) {
+    const tipo = String(lead.custom_data?.tipo_empresa ?? "Não informado");
+    counts[tipo] = (counts[tipo] ?? 0) + 1;
+  }
+  return counts;
+}
+
+// ---------------------------------------------------------------------------
+// Sub-KPI: Programas de Aceleração por estágio do negócio
+// ---------------------------------------------------------------------------
+
+const ESTAGIO_SHORT: Record<string, string> = {
+  "Ideação: Refinando a ideia do negócio ou conceito.": "Ideação",
+  "Validação: Produto em validação, mas ainda sem vendas.": "Validação",
+  "Operação: Produto lançado no mercado, em fase inicial de vendas.": "Operação",
+  "Tração: Expansão ativa e aumento consistente de clientes/receita.": "Tração",
+  "Escala: Estabelecida no mercado, buscando expansão e otimização.": "Escala",
+};
+
+function getAceleracaoEstagioCounts(leads: Lead[]) {
+  const aceleracaoLeads = leads.filter((l) => l.form_name === "programas-aceleracao");
+  const counts: Record<string, number> = {};
+  for (const lead of aceleracaoLeads) {
+    const raw = String(lead.custom_data?.estagio_negocio ?? "Não informado");
+    const label = ESTAGIO_SHORT[raw] ?? raw;
+    counts[label] = (counts[label] ?? 0) + 1;
+  }
+  return counts;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString("pt-BR", {
     day: "2-digit",
@@ -39,6 +80,33 @@ function formatDate(dateStr: string) {
     minute: "2-digit",
   });
 }
+
+// ---------------------------------------------------------------------------
+// Sub-KPI pills component
+// ---------------------------------------------------------------------------
+
+function SubKpis({ counts, color }: { counts: Record<string, number>; color: string }) {
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5">
+      {entries.map(([label, count]) => (
+        <span
+          key={label}
+          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+          style={{ backgroundColor: color + "15", color }}
+        >
+          {count} {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Lead Card
+// ---------------------------------------------------------------------------
 
 function LeadCard({ lead, isNew }: { lead: Lead; isNew: boolean }) {
   const color = FORM_COLORS[lead.form_name] ?? "#00e846";
@@ -78,9 +146,15 @@ function LeadCard({ lead, isNew }: { lead: Lead; isNew: boolean }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [pageViews, setPageViews] = useState(0);
+  const [todayPageViews, setTodayPageViews] = useState(0);
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [filter, setFilter] = useState<string>("all");
@@ -97,7 +171,7 @@ export default function DashboardPage() {
     });
   }, [router]);
 
-  // Carrega leads e inicia Realtime (só após autenticação)
+  // Carrega leads, page views e inicia Realtime
   useEffect(() => {
     if (authChecking) return;
 
@@ -116,9 +190,27 @@ export default function DashboardPage() {
       setLoading(false);
     }
 
-    fetchLeads();
+    async function fetchPageViews() {
+      // Total
+      const { count: total } = await supabase
+        .from("page_views")
+        .select("*", { count: "exact", head: true });
+      setPageViews(total ?? 0);
 
-    const channel = supabase
+      // Hoje
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const { count: today } = await supabase
+        .from("page_views")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", todayStart.toISOString());
+      setTodayPageViews(today ?? 0);
+    }
+
+    fetchLeads();
+    fetchPageViews();
+
+    const leadsChannel = supabase
       .channel("leads-realtime")
       .on(
         "postgres_changes",
@@ -139,8 +231,21 @@ export default function DashboardPage() {
       )
       .subscribe();
 
+    const viewsChannel = supabase
+      .channel("views-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "page_views" },
+        () => {
+          setPageViews((prev) => prev + 1);
+          setTodayPageViews((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(leadsChannel);
+      supabase.removeChannel(viewsChannel);
     };
   }, [authChecking]);
 
@@ -169,6 +274,9 @@ export default function DashboardPage() {
     {} as Record<string, number>
   );
 
+  const membershipTypeCounts = getMembershipTypeCounts(leads);
+  const aceleracaoEstagioCounts = getAceleracaoEstagioCounts(leads);
+
   return (
     <div className="min-h-screen bg-black p-6 text-white">
       <div className="mx-auto max-w-6xl">
@@ -188,7 +296,54 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Stats */}
+        {/* Page Views */}
+        <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e846" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span className="text-xs font-medium uppercase text-zinc-400">Acessos hoje</span>
+            </div>
+            <p className="text-2xl font-bold text-green-400">{todayPageViews}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span className="text-xs font-medium uppercase text-zinc-400">Acessos total</span>
+            </div>
+            <p className="text-2xl font-bold">{pageViews}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e846" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
+              </svg>
+              <span className="text-xs font-medium uppercase text-zinc-400">Total leads</span>
+            </div>
+            <p className="text-2xl font-bold text-green-400">{leads.length}</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
+              <span className="text-xs font-medium uppercase text-zinc-400">Conversão</span>
+            </div>
+            <p className="text-2xl font-bold">
+              {pageViews > 0 ? ((leads.length / pageViews) * 100).toFixed(1) : "0"}%
+            </p>
+          </div>
+        </div>
+
+        {/* KPI Cards por produto */}
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <button
             onClick={() => setFilter("all")}
@@ -204,6 +359,13 @@ export default function DashboardPage() {
           {Object.entries(FORM_LABELS).map(([key, label]) => {
             const color = FORM_COLORS[key];
             const isActive = filter === key;
+            const count = formCounts[key] ?? 0;
+
+            // Sub-KPIs
+            let subCounts: Record<string, number> | null = null;
+            if (key === "membership" && count > 0) subCounts = membershipTypeCounts;
+            if (key === "programas-aceleracao" && count > 0) subCounts = aceleracaoEstagioCounts;
+
             return (
               <button
                 key={key}
@@ -212,11 +374,12 @@ export default function DashboardPage() {
                   isActive
                     ? "bg-opacity-10"
                     : "border-white/10 bg-zinc-900 hover:border-white/20"
-                }`}
+                } ${subCounts ? "col-span-2 md:col-span-1" : ""}`}
                 style={isActive ? { borderColor: color, backgroundColor: color + "15" } : {}}
               >
-                <p className="text-2xl font-bold">{formCounts[key] ?? 0}</p>
+                <p className="text-2xl font-bold">{count}</p>
                 <p className="truncate text-xs text-zinc-400">{label}</p>
+                {subCounts && <SubKpis counts={subCounts} color={color} />}
               </button>
             );
           })}
