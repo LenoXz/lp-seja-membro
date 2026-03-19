@@ -27,7 +27,7 @@ export const products: Product[] = [
   {
     id: "espaco-fisico",
     title: "Espaço Físico",
-    subtitle: "Infraestrutura para inovação",
+    subtitle: "Tenha seu escritório no Caldeira",
     image: "/espaco_fisico.jpg",
     description:
       "Utilize os espaços do Instituto Caldeira para eventos, reuniões, workshops e muito mais. Ambientes modernos e preparados para impulsionar a colaboração.",

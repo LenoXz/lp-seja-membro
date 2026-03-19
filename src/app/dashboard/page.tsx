@@ -155,6 +155,7 @@ export default function DashboardPage() {
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [pageViews, setPageViews] = useState(0);
   const [todayPageViews, setTodayPageViews] = useState(0);
+  const [uniqueVisitors, setUniqueVisitors] = useState(0);
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [filter, setFilter] = useState<string>("all");
@@ -191,13 +192,13 @@ export default function DashboardPage() {
     }
 
     async function fetchPageViews() {
-      // Total
+      // Total de acessos
       const { count: total } = await supabase
         .from("page_views")
         .select("*", { count: "exact", head: true });
       setPageViews(total ?? 0);
 
-      // Hoje
+      // Acessos de hoje
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const { count: today } = await supabase
@@ -205,6 +206,17 @@ export default function DashboardPage() {
         .select("*", { count: "exact", head: true })
         .gte("created_at", todayStart.toISOString());
       setTodayPageViews(today ?? 0);
+
+      // Visitantes únicos (distinct visitor_id)
+      const { data: visitorData } = await supabase
+        .from("page_views")
+        .select("visitor_id")
+        .not("visitor_id", "is", null);
+
+      if (visitorData) {
+        const uniqueIds = new Set(visitorData.map((row) => row.visitor_id));
+        setUniqueVisitors(uniqueIds.size);
+      }
     }
 
     fetchLeads();
@@ -236,9 +248,18 @@ export default function DashboardPage() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "page_views" },
-        () => {
+        (payload) => {
           setPageViews((prev) => prev + 1);
           setTodayPageViews((prev) => prev + 1);
+          // Atualiza visitantes únicos em tempo real
+          const newVisitorId = (payload.new as { visitor_id?: string }).visitor_id;
+          if (newVisitorId) {
+            setUniqueVisitors((prev) => {
+              // Incrementamos de forma otimista — em caso de revisita do mesmo
+              // visitor_id, o próximo fetch corrige o valor
+              return prev + 1;
+            });
+          }
         }
       )
       .subscribe();
@@ -277,6 +298,9 @@ export default function DashboardPage() {
   const membershipTypeCounts = getMembershipTypeCounts(leads);
   const aceleracaoEstagioCounts = getAceleracaoEstagioCounts(leads);
 
+  const conversionRate =
+    uniqueVisitors > 0 ? ((leads.length / uniqueVisitors) * 100).toFixed(1) : "0";
+
   return (
     <div className="min-h-screen bg-black p-6 text-white">
       <div className="mx-auto max-w-6xl">
@@ -296,7 +320,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Page Views */}
+        {/* Métricas principais */}
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="mb-1 flex items-center gap-2">
@@ -321,14 +345,12 @@ export default function DashboardPage() {
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="mb-1 flex items-center gap-2">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00e846" strokeWidth="2">
-                <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 00-3-3.87" />
-                <path d="M16 3.13a4 4 0 010 7.75" />
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
               </svg>
-              <span className="text-xs font-medium uppercase text-zinc-400">Total leads</span>
+              <span className="text-xs font-medium uppercase text-zinc-400">Visitantes únicos</span>
             </div>
-            <p className="text-2xl font-bold text-green-400">{leads.length}</p>
+            <p className="text-2xl font-bold text-green-400">{uniqueVisitors}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="mb-1 flex items-center gap-2">
@@ -337,13 +359,11 @@ export default function DashboardPage() {
               </svg>
               <span className="text-xs font-medium uppercase text-zinc-400">Conversão</span>
             </div>
-            <p className="text-2xl font-bold">
-              {pageViews > 0 ? ((leads.length / pageViews) * 100).toFixed(1) : "0"}%
-            </p>
+            <p className="text-2xl font-bold">{conversionRate}%</p>
           </div>
         </div>
 
-        {/* KPI Cards por produto */}
+        {/* KPI Cards por produto (filtro) */}
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <button
             onClick={() => setFilter("all")}
@@ -355,6 +375,7 @@ export default function DashboardPage() {
           >
             <p className="text-2xl font-bold">{leads.length}</p>
             <p className="text-xs text-zinc-400">Total</p>
+            <p className="text-[10px] text-zinc-500">Total leads</p>
           </button>
           {Object.entries(FORM_LABELS).map(([key, label]) => {
             const color = FORM_COLORS[key];
