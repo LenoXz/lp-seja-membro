@@ -93,6 +93,17 @@
   }
 }
 
+@keyframes scrollArrow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(4px);
+  }
+}
+
 *,
 *::before,
 *::after {

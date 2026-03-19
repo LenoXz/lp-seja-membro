@@ -140,10 +140,10 @@ export default function ProductCarousel({ products, selectedId, onSelect, onCta 
     <div className="relative">
       <div
         ref={scrollRef}
-        className={`hide-scrollbar flex items-stretch gap-4 overflow-x-auto px-[7.5vw] pb-2 md:gap-6 md:px-[20vw] lg:px-[calc(50vw-200px)] transition-opacity duration-300 ${
+        className={`hide-scrollbar flex items-stretch gap-4 overflow-x-auto px-[7.5vw] pt-2 pb-2 md:gap-6 md:px-[20vw] lg:px-[calc(50vw-200px)] transition-opacity duration-300 ${
           ready ? "opacity-100" : "opacity-0"
         }`}
-        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
+        style={{ WebkitOverflowScrolling: "touch" }}
       >
         {tripled.map((product, i) => (
           <div key={`${product.id}-${i}`} data-card className="flex-shrink-0">
