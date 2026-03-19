@@ -48,19 +48,21 @@ export default function Hero() {
         <p className="mb-4 font-body text-xs font-bold uppercase tracking-[3.5px] text-primary md:text-sm">
           Instituto Caldeira
         </p>
-        <h1 className="font-display text-[clamp(2.5rem,9vw,5.5rem)] font-bold leading-[1.05] tracking-[0.03em] text-white">
+        <h1 className="font-display text-[clamp(2rem,8vw,5.5rem)] font-normal leading-[1.05] tracking-[0.02em] text-white">
           Faça parte
           <br />
           da comunidade
           <br />
           <span className="text-primary">Caldeira</span>
         </h1>
-        <a
-          href="#produtos"
-          className="relative mt-12 inline-flex items-center justify-center border-2 border-primary bg-transparent px-10 py-4 font-body text-sm font-medium uppercase tracking-[0.07em] text-primary transition-all duration-300 hover:bg-primary hover:text-black md:mt-14"
-        >
-          Conheça os produtos
-        </a>
+        <div className="mt-12 md:mt-14">
+          <a
+            href="#produtos"
+            className="inline-flex items-center justify-center border-2 border-primary bg-transparent px-10 py-4 font-body text-sm font-medium uppercase tracking-[0.07em] text-primary transition-all duration-300 hover:bg-primary hover:text-black"
+          >
+            Conheça os produtos
+          </a>
+        </div>
       </div>
 
       {/* Scroll indicator - animated arrows */}
