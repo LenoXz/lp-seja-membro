@@ -30,12 +30,12 @@ export const products: Product[] = [
     subtitle: "Conexão com o ecossistema",
     image: "/membership.jpg",
     description:
-      "Torne-se membro do Instituto Caldeira e tenha acesso a uma comunidade vibrante de inovação, eventos exclusivos e oportunidades de networking com líderes do ecossistema.",
+      "Torne-se membro do Instituto Caldeira e acesse uma comunidade de inovação, eventos exclusivos e networking com líderes do ecossistema.",
     highlights: [
       "Networking com líderes do ecossistema",
       "Descontos em programas e espaços",
       "Visibilidade para sua marca",
-      "Acesso a eventos exclusivos de matchmaking, rodadas de investimento e encontros de negócios",
+      "Eventos de matchmaking, investimento e negócios",
     ],
     fields: [
       {

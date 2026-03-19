@@ -61,7 +61,7 @@ export default function ProductCard({ product, isSelected, onClick, onCta }: Pro
           </p>
 
           {/* Description */}
-          <p className="mt-5 font-body text-sm leading-relaxed text-gray-200 md:text-base">
+          <p className="mt-5 font-body text-sm leading-relaxed text-gray-200">
             {product.description}
           </p>
 

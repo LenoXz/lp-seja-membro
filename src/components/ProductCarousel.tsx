@@ -53,17 +53,51 @@ export default function ProductCarousel({ products, selectedId, onSelect, onCta 
     if (!container) return;
 
     let timeout: ReturnType<typeof setTimeout>;
+    let scrollEndTimeout: ReturnType<typeof setTimeout>;
+
+    const detectCenterAndReposition = () => {
+      if (isJumping.current) return;
+
+      const cards = container.querySelectorAll<HTMLElement>("[data-card]");
+      const containerCenter = container.scrollLeft + container.offsetWidth / 2;
+      let closestIndex = 0;
+      let closestDistance = Infinity;
+
+      cards.forEach((el, i) => {
+        const cardCenter = el.offsetLeft + el.offsetWidth / 2;
+        const distance = Math.abs(containerCenter - cardCenter);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestIndex = i;
+        }
+      });
+
+      const realIndex = getRealIndex(closestIndex);
+      onSelect(products[realIndex].id);
+
+      // Jump back to middle set if we drifted into prefix/suffix
+      if (closestIndex < count || closestIndex >= count * 2) {
+        isJumping.current = true;
+        const middleEquivalent = count + realIndex;
+        scrollToIndex(middleEquivalent, false);
+        // Give iOS enough time to settle after the instant jump
+        setTimeout(() => {
+          isJumping.current = false;
+        }, 50);
+      }
+    };
 
     const handleScroll = () => {
       clearTimeout(timeout);
+      clearTimeout(scrollEndTimeout);
+
+      // Quick detection for updating selected state
       timeout = setTimeout(() => {
         if (isJumping.current) return;
-
         const cards = container.querySelectorAll<HTMLElement>("[data-card]");
         const containerCenter = container.scrollLeft + container.offsetWidth / 2;
         let closestIndex = 0;
         let closestDistance = Infinity;
-
         cards.forEach((el, i) => {
           const cardCenter = el.offsetLeft + el.offsetWidth / 2;
           const distance = Math.abs(containerCenter - cardCenter);
@@ -72,26 +106,21 @@ export default function ProductCarousel({ products, selectedId, onSelect, onCta 
             closestIndex = i;
           }
         });
-
         const realIndex = getRealIndex(closestIndex);
         onSelect(products[realIndex].id);
+      }, 60);
 
-        // Jump back to middle set if we drifted into prefix/suffix
-        if (closestIndex < count || closestIndex >= count * 2) {
-          isJumping.current = true;
-          const middleEquivalent = count + realIndex;
-          scrollToIndex(middleEquivalent, false);
-          requestAnimationFrame(() => {
-            isJumping.current = false;
-          });
-        }
-      }, 100);
+      // Delayed reposition — wait for iOS momentum scrolling to fully stop
+      scrollEndTimeout = setTimeout(() => {
+        detectCenterAndReposition();
+      }, 250);
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       container.removeEventListener("scroll", handleScroll);
       clearTimeout(timeout);
+      clearTimeout(scrollEndTimeout);
     };
   }, [products, count, onSelect, scrollToIndex]);
 
@@ -111,12 +140,13 @@ export default function ProductCarousel({ products, selectedId, onSelect, onCta 
     <div className="relative">
       <div
         ref={scrollRef}
-        className={`hide-scrollbar flex items-stretch gap-4 overflow-x-auto snap-x snap-mandatory px-[7.5vw] pb-2 md:gap-6 md:px-[20vw] lg:px-[calc(50vw-200px)] transition-opacity duration-300 ${
+        className={`hide-scrollbar flex items-stretch gap-4 overflow-x-auto px-[7.5vw] pb-2 md:gap-6 md:px-[20vw] lg:px-[calc(50vw-200px)] transition-opacity duration-300 ${
           ready ? "opacity-100" : "opacity-0"
         }`}
+        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}
       >
         {tripled.map((product, i) => (
-          <div key={`${product.id}-${i}`} data-card className="flex-shrink-0 snap-center">
+          <div key={`${product.id}-${i}`} data-card className="flex-shrink-0">
             <ProductCard
               product={product}
               isSelected={product.id === selectedId}
