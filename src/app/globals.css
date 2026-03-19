@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "MonumentExtended";
+  src: url("/fonts/MonumentExtended-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MonumentExtended";
+  src: url("/fonts/MonumentExtended-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MonumentExtended";
+  src: url("/fonts/MonumentExtended-Ultrabold.otf") format("opentype");
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bahnschrift";
+  src: url("/fonts/bahnschrift.ttf") format("truetype");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 @theme {
   --color-primary: #00e846;
   --color-background: #000000;
@@ -14,8 +42,8 @@
   --color-gray-800: #222222;
   --color-gray-900: #111111;
 
-  --font-display: "Space Grotesk", sans-serif;
-  --font-body: "Montserrat", sans-serif;
+  --font-display: "MonumentExtended", sans-serif;
+  --font-body: "Bahnschrift", sans-serif;
 
   --animate-fadeIn: fadeIn 0.4s ease-out;
   --animate-fadeUp: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;

@@ -7,7 +7,7 @@ import ProductCarousel from "./ProductCarousel";
 import DynamicForm from "./DynamicForm";
 
 export default function ProductSection() {
-  const [selectedId, setSelectedId] = useState(products[0].id);
+  const [selectedId, setSelectedId] = useState("membership");
   const [formVisible, setFormVisible] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
   const selectedProduct = products.find((p) => p.id === selectedId) ?? products[0];

@@ -1,20 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Montserrat } from "next/font/google";
 import "./globals.css";
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-  weight: ["400", "600", "700"],
-});
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -34,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${spaceGrotesk.variable} ${montserrat.variable}`}>
+    <html lang="pt-BR">
       <body>{children}</body>
     </html>
   );
