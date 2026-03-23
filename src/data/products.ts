@@ -298,50 +298,7 @@ export const products: Product[] = [
       },
     ],
   },
-  {
-    id: "missoes-internacionais",
-    title: "Missão China 2026",
-    subtitle: "Expandindo fronteiras",
-    image: "/missoes_internacionais.jpg",
-    description:
-      "Mergulhe no principal ecossistema de IA e tecnologia do mundo. Conecte-se a grandes empresas e líderes em uma imersão exclusiva, com foco em aplicações práticas para os negócios.",
-    highlights: [
-      "Visitas a gigantes como Baidu, ByteDance e Tencent",
-      "Networking com C-Levels do ecossistema chinês",
-      "Curadoria com Ricardo Geromel",
-      "Pacote 5 estrelas com hotel, logística e alimentação inclusos",
-    ],
-    fields: [
-      {
-        name: "nome",
-        label: "Nome completo",
-        type: "text",
-        required: true,
-        placeholder: "Seu nome completo",
-      },
-      {
-        name: "email",
-        label: "E-mail corporativo",
-        type: "email",
-        required: true,
-        placeholder: "seu@email.com",
-      },
-      {
-        name: "telefone",
-        label: "Telefone",
-        type: "tel",
-        required: true,
-        placeholder: "(51) 99999-9999",
-      },
-      {
-        name: "empresa",
-        label: "Empresa",
-        type: "text",
-        required: true,
-        placeholder: "Nome da empresa",
-      },
-    ],
-  },
+
   {
     id: "parceiro-empregabilidade",
     title: "Contrate jovens talentos",
@@ -390,6 +347,51 @@ export const products: Product[] = [
         type: "select",
         required: true,
         options: ["Sim", "Não"],
+      },
+    ],
+  },
+
+  {
+    id: "missoes-internacionais",
+    title: "Missão China 2026",
+    subtitle: "Expandindo fronteiras",
+    image: "/missoes_internacionais.jpg",
+    description:
+      "Mergulhe no principal ecossistema de IA e tecnologia do mundo. Conecte-se a grandes empresas e líderes em uma imersão exclusiva, com foco em aplicações práticas para os negócios.",
+    highlights: [
+      "Visitas a gigantes como Baidu, ByteDance e Tencent",
+      "Networking com C-Levels do ecossistema chinês",
+      "Curadoria com Ricardo Geromel",
+      "Pacote 5 estrelas com hotel, logística e alimentação inclusos",
+    ],
+    fields: [
+      {
+        name: "nome",
+        label: "Nome completo",
+        type: "text",
+        required: true,
+        placeholder: "Seu nome completo",
+      },
+      {
+        name: "email",
+        label: "E-mail corporativo",
+        type: "email",
+        required: true,
+        placeholder: "seu@email.com",
+      },
+      {
+        name: "telefone",
+        label: "Telefone",
+        type: "tel",
+        required: true,
+        placeholder: "(51) 99999-9999",
+      },
+      {
+        name: "empresa",
+        label: "Empresa",
+        type: "text",
+        required: true,
+        placeholder: "Nome da empresa",
       },
     ],
   },
