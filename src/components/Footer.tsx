@@ -15,7 +15,7 @@ export default function Footer() {
       >
         <CaldeiraLogo variant="light" width={48} height={54} />
         <p className="font-body text-xs text-gray-500">
-          &copy; {new Date().getFullYear()} Instituto Caldeira. Todos os direitos reservados.
+          &copy; {new Date().getFullYear()} Instituto Caldeira. Todos os direitos reservados
         </p>
       </div>
     </footer>
