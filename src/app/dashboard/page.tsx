@@ -18,6 +18,7 @@ const FORM_LABELS: Record<string, string> = {
   membership: "Membership",
   "espaco-fisico": "Espaço Físico",
   "programas-aceleracao": "Programas de Aceleração",
+  "geracao-caldeira": "Geração Caldeira",
   "missoes-internacionais": "Missões Internacionais",
   "parceiro-empregabilidade": "Parceiro Empregabilidade",
 };
@@ -26,6 +27,7 @@ const FORM_COLORS: Record<string, string> = {
   membership: "#00e846",
   "espaco-fisico": "#3b82f6",
   "programas-aceleracao": "#f59e0b",
+  "geracao-caldeira": "#06b6d4",
   "missoes-internacionais": "#8b5cf6",
   "parceiro-empregabilidade": "#ec4899",
 };
@@ -156,6 +158,7 @@ export default function DashboardPage() {
   const [pageViews, setPageViews] = useState(0);
   const [todayPageViews, setTodayPageViews] = useState(0);
   const [uniqueVisitors, setUniqueVisitors] = useState(0);
+  const [geracaoClicks, setGeracaoClicks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [filter, setFilter] = useState<string>("all");
@@ -192,19 +195,21 @@ export default function DashboardPage() {
     }
 
     async function fetchPageViews() {
-      // Total de acessos
+      // Total de acessos (exclui cliques de botão)
       const { count: total } = await supabase
         .from("page_views")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .not("page", "like", "click:%");
       setPageViews(total ?? 0);
 
-      // Acessos de hoje
+      // Acessos de hoje (exclui cliques de botão)
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const { count: today } = await supabase
         .from("page_views")
         .select("*", { count: "exact", head: true })
-        .gte("created_at", todayStart.toISOString());
+        .gte("created_at", todayStart.toISOString())
+        .not("page", "like", "click:%");
       setTodayPageViews(today ?? 0);
 
       // Visitantes únicos (distinct visitor_id)
@@ -219,8 +224,17 @@ export default function DashboardPage() {
       }
     }
 
+    async function fetchGeracaoClicks() {
+      const { count } = await supabase
+        .from("page_views")
+        .select("*", { count: "exact", head: true })
+        .eq("page", "click:geracao-caldeira");
+      setGeracaoClicks(count ?? 0);
+    }
+
     fetchLeads();
     fetchPageViews();
+    fetchGeracaoClicks();
 
     const leadsChannel = supabase
       .channel("leads-realtime")
@@ -249,16 +263,19 @@ export default function DashboardPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "page_views" },
         (payload) => {
+          const newRow = payload.new as { page?: string; visitor_id?: string };
+
+          // Cliques no Geração Caldeira não são page views
+          if (newRow.page === "click:geracao-caldeira") {
+            setGeracaoClicks((prev) => prev + 1);
+            return;
+          }
+
           setPageViews((prev) => prev + 1);
           setTodayPageViews((prev) => prev + 1);
           // Atualiza visitantes únicos em tempo real
-          const newVisitorId = (payload.new as { visitor_id?: string }).visitor_id;
-          if (newVisitorId) {
-            setUniqueVisitors((prev) => {
-              // Incrementamos de forma otimista — em caso de revisita do mesmo
-              // visitor_id, o próximo fetch corrige o valor
-              return prev + 1;
-            });
+          if (newRow.visitor_id) {
+            setUniqueVisitors((prev) => prev + 1);
           }
         }
       )
@@ -363,6 +380,19 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Geração Caldeira clicks */}
+        <div className="mb-6 grid grid-cols-1">
+          <div className="rounded-lg border p-4" style={{ borderColor: "#06b6d4", backgroundColor: "#06b6d415" }}>
+            <div className="mb-1 flex items-center gap-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+              <span className="text-xs font-medium uppercase text-zinc-400">Cliques — Inscreva-se Geração Caldeira</span>
+            </div>
+            <p className="text-2xl font-bold" style={{ color: "#06b6d4" }}>{geracaoClicks}</p>
+          </div>
+        </div>
+
         {/* KPI Cards por produto (filtro) */}
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
           <button
@@ -377,7 +407,7 @@ export default function DashboardPage() {
             <p className="text-xs text-zinc-400">Total</p>
             <p className="text-[10px] text-zinc-500">Total leads</p>
           </button>
-          {Object.entries(FORM_LABELS).map(([key, label]) => {
+          {Object.entries(FORM_LABELS).filter(([key]) => key !== "geracao-caldeira").map(([key, label]) => {
             const color = FORM_COLORS[key];
             const isActive = filter === key;
             const count = formCounts[key] ?? 0;

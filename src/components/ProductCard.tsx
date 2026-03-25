@@ -86,7 +86,7 @@ export default function ProductCard({ product, isSelected, onClick, onCta }: Pro
           }}
           className="w-full inline-flex items-center justify-center border-2 border-primary bg-transparent px-6 py-3 font-body text-sm font-medium uppercase tracking-[0.07em] text-primary transition-all duration-300 hover:bg-primary hover:text-black active:bg-primary active:text-black"
         >
-          Quero me conectar
+          {product.ctaLabel ?? "Quero me conectar"}
         </button>
       </div>
     </div>

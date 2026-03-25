@@ -21,6 +21,10 @@ export interface Product {
   highlights: string[];
   image: string;
   fields: FormField[];
+  /** If set, CTA opens this URL instead of showing the form */
+  externalLink?: string;
+  /** Custom CTA button label */
+  ctaLabel?: string;
 }
 
 export const products: Product[] = [
@@ -349,6 +353,25 @@ export const products: Product[] = [
         options: ["Sim", "Não"],
       },
     ],
+  },
+
+  {
+    id: "geracao-caldeira",
+    title: "Geração Caldeira",
+    subtitle: "Capacitação de jovens talentos",
+    image: "/geracao_caldeira.jpg",
+    description:
+      "Capacite-se para o mercado de trabalho da nova economia e conecte-se com grandes empresas através de trilhas educacionais.",
+    highlights: [
+      "100% Gratuito",
+      "Bolsa auxílio de R$5.000",
+      "Moradia para jovens de fora do estado",
+      "Certificações online",
+    ],
+    fields: [],
+    externalLink:
+      "https://institutocaldeira.org.br/programas/formulario/geracao-caldeira-2026/?cupom=LENON_GC6603&utm_content=LENON_GC6603&utm_source=indicacao_alumni",
+    ctaLabel: "Inscreva-se",
   },
 
   {

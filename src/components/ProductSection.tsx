@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { products } from "@/data/products";
 import { useInView } from "@/hooks/useInView";
+import { supabase } from "@/lib/supabase";
 import ProductCarousel from "./ProductCarousel";
 import DynamicForm from "./DynamicForm";
 
@@ -21,6 +22,19 @@ export default function ProductSection() {
   };
 
   const handleCta = (id: string) => {
+    const product = products.find((p) => p.id === id);
+
+    if (product?.externalLink) {
+      // Track the click
+      supabase
+        .from("page_views")
+        .insert({ page: `click:${id}`, referrer: window.location.href, user_agent: navigator.userAgent })
+        .then();
+
+      window.open(product.externalLink, "_blank", "noopener,noreferrer");
+      return;
+    }
+
     setSelectedId(id);
     setFormVisible(true);
   };
