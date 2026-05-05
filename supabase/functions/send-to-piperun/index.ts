@@ -368,7 +368,7 @@ async function createDeal(
 ) {
   const pipeline = PIPELINE_MAP[lead.form_name] ?? PIPELINE_MAP["membership"];
 
-  const title = `${companyName} - SSB26 (${lead.id.slice(0, 8)})`;
+  const title = `${companyName} - GS26 (${lead.id.slice(0, 8)})`;
 
   const body: Record<string, unknown> = {
     title,

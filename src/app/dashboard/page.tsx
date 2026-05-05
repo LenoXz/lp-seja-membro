@@ -14,6 +14,15 @@ interface Lead {
   custom_data: Record<string, unknown>;
 }
 
+type DateRange = "today" | "7d" | "30d" | "all";
+
+const DATE_RANGE_LABELS: Record<DateRange, string> = {
+  today: "Hoje",
+  "7d": "7 dias",
+  "30d": "30 dias",
+  all: "Tudo",
+};
+
 const FORM_LABELS: Record<string, string> = {
   membership: "Membership",
   "espaco-fisico": "Espaço Físico",
@@ -31,6 +40,27 @@ const FORM_COLORS: Record<string, string> = {
   "missoes-internacionais": "#8b5cf6",
   "parceiro-empregabilidade": "#ec4899",
 };
+
+function getDateRangeStart(range: DateRange): string | null {
+  if (range === "all") return null;
+  const now = new Date();
+  if (range === "today") {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }
+  if (range === "7d") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 7);
+    return start.toISOString();
+  }
+  if (range === "30d") {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    return start.toISOString();
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Sub-KPI: Membership por tipo de empresa
@@ -156,12 +186,12 @@ export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [pageViews, setPageViews] = useState(0);
-  const [todayPageViews, setTodayPageViews] = useState(0);
   const [uniqueVisitors, setUniqueVisitors] = useState(0);
   const [geracaoClicks, setGeracaoClicks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [filter, setFilter] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
   const router = useRouter();
 
   // Verifica autenticação
@@ -175,49 +205,42 @@ export default function DashboardPage() {
     });
   }, [router]);
 
-  // Carrega leads, page views e inicia Realtime
+  // Busca dados quando dateRange muda
   useEffect(() => {
     if (authChecking) return;
 
     async function fetchLeads() {
-      const { data, error } = await supabase
+      setLoading(true);
+      const start = getDateRangeStart(dateRange);
+      let query = supabase
         .from("leads")
         .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
+      if (start) query = query.gte("created_at", start);
 
-      if (error) {
-        console.error("Erro ao buscar leads:", error);
-      } else {
-        setLeads(data as Lead[]);
-      }
+      const { data, error } = await query;
+      if (error) console.error("Erro ao buscar leads:", error);
+      else setLeads(data as Lead[]);
       setLoading(false);
     }
 
     async function fetchPageViews() {
-      // Total de acessos (exclui cliques de botão)
-      const { count: total } = await supabase
+      const start = getDateRangeStart(dateRange);
+
+      let totalQuery = supabase
         .from("page_views")
         .select("*", { count: "exact", head: true })
         .not("page", "like", "click:%");
+      if (start) totalQuery = totalQuery.gte("created_at", start);
+      const { count: total } = await totalQuery;
       setPageViews(total ?? 0);
 
-      // Acessos de hoje (exclui cliques de botão)
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const { count: today } = await supabase
-        .from("page_views")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", todayStart.toISOString())
-        .not("page", "like", "click:%");
-      setTodayPageViews(today ?? 0);
-
-      // Visitantes únicos (distinct visitor_id)
-      const { data: visitorData } = await supabase
+      let visitorQuery = supabase
         .from("page_views")
         .select("visitor_id")
         .not("visitor_id", "is", null);
-
+      if (start) visitorQuery = visitorQuery.gte("created_at", start);
+      const { data: visitorData } = await visitorQuery;
       if (visitorData) {
         const uniqueIds = new Set(visitorData.map((row) => row.visitor_id));
         setUniqueVisitors(uniqueIds.size);
@@ -225,16 +248,24 @@ export default function DashboardPage() {
     }
 
     async function fetchGeracaoClicks() {
-      const { count } = await supabase
+      const start = getDateRangeStart(dateRange);
+      let query = supabase
         .from("page_views")
         .select("*", { count: "exact", head: true })
         .eq("page", "click:geracao-caldeira");
+      if (start) query = query.gte("created_at", start);
+      const { count } = await query;
       setGeracaoClicks(count ?? 0);
     }
 
     fetchLeads();
     fetchPageViews();
     fetchGeracaoClicks();
+  }, [authChecking, dateRange]);
+
+  // Realtime (configurado uma vez após auth)
+  useEffect(() => {
+    if (authChecking) return;
 
     const leadsChannel = supabase
       .channel("leads-realtime")
@@ -265,15 +296,12 @@ export default function DashboardPage() {
         (payload) => {
           const newRow = payload.new as { page?: string; visitor_id?: string };
 
-          // Cliques no Geração Caldeira não são page views
           if (newRow.page === "click:geracao-caldeira") {
             setGeracaoClicks((prev) => prev + 1);
             return;
           }
 
           setPageViews((prev) => prev + 1);
-          setTodayPageViews((prev) => prev + 1);
-          // Atualiza visitantes únicos em tempo real
           if (newRow.visitor_id) {
             setUniqueVisitors((prev) => prev + 1);
           }
@@ -292,7 +320,6 @@ export default function DashboardPage() {
     router.replace("/dashboard/login");
   };
 
-  // Tela de loading enquanto verifica auth
   if (authChecking) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
@@ -322,7 +349,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-black p-6 text-white">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Dashboard de Leads</h1>
             <p className="mt-1 text-zinc-400">
@@ -337,6 +364,23 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {/* Filtro de período */}
+        <div className="mb-6 flex gap-2">
+          {(["today", "7d", "30d", "all"] as DateRange[]).map((range) => (
+            <button
+              key={range}
+              onClick={() => setDateRange(range)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                dateRange === range
+                  ? "bg-green-400 text-black"
+                  : "border border-white/10 text-zinc-400 hover:border-white/20 hover:text-white"
+              }`}
+            >
+              {DATE_RANGE_LABELS[range]}
+            </button>
+          ))}
+        </div>
+
         {/* Métricas principais */}
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
@@ -345,19 +389,23 @@ export default function DashboardPage() {
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-              <span className="text-xs font-medium uppercase text-zinc-400">Acessos hoje</span>
+              <span className="text-xs font-medium uppercase text-zinc-400">
+                Acessos{dateRange !== "all" ? ` — ${DATE_RANGE_LABELS[dateRange].toLowerCase()}` : ""}
+              </span>
             </div>
-            <p className="text-2xl font-bold text-green-400">{todayPageViews}</p>
+            <p className="text-2xl font-bold text-green-400">{pageViews}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="mb-1 flex items-center gap-2">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" strokeWidth="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
-              <span className="text-xs font-medium uppercase text-zinc-400">Acessos total</span>
+              <span className="text-xs font-medium uppercase text-zinc-400">Visitantes únicos</span>
             </div>
-            <p className="text-2xl font-bold">{pageViews}</p>
+            <p className="text-2xl font-bold">{uniqueVisitors}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="mb-1 flex items-center gap-2">
@@ -365,9 +413,9 @@ export default function DashboardPage() {
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
-              <span className="text-xs font-medium uppercase text-zinc-400">Visitantes únicos</span>
+              <span className="text-xs font-medium uppercase text-zinc-400">Total leads</span>
             </div>
-            <p className="text-2xl font-bold text-green-400">{uniqueVisitors}</p>
+            <p className="text-2xl font-bold text-green-400">{leads.length}</p>
           </div>
           <div className="rounded-lg border border-white/10 bg-zinc-900 p-4">
             <div className="mb-1 flex items-center gap-2">
@@ -412,7 +460,6 @@ export default function DashboardPage() {
             const isActive = filter === key;
             const count = formCounts[key] ?? 0;
 
-            // Sub-KPIs
             let subCounts: Record<string, number> | null = null;
             if (key === "membership" && count > 0) subCounts = membershipTypeCounts;
             if (key === "programas-aceleracao" && count > 0) subCounts = aceleracaoEstagioCounts;
@@ -443,8 +490,8 @@ export default function DashboardPage() {
           </div>
         ) : filteredLeads.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-            <p className="text-lg">Nenhum lead ainda</p>
-            <p className="text-sm">Novos leads aparecerão aqui em tempo real</p>
+            <p className="text-lg">Nenhum lead neste período</p>
+            <p className="text-sm">Tente selecionar um período maior</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
